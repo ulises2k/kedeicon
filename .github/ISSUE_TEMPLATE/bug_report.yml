@@ -1,0 +1,49 @@
+name: "Bug report"
+description: The panel works but misbehaves (wrong colors, orientation, partial rendering, crash).
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for helping improve kedeicon."
+  - type: input
+    id: board
+    attributes:
+      label: Raspberry Pi model + OS / kernel
+      placeholder: "Pi 3B+, Debian 13, kernel 6.18 aarch64"
+    validations:
+      required: true
+  - type: input
+    id: panel
+    attributes:
+      label: Panel marking on the PCB
+      placeholder: "3552 = v5.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: rot
+    attributes:
+      label: KEDEI_ROT in use
+      options: ["0", "1", "2", "3"]
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens vs what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: journalctl -u kedeicon output
+      render: shell
+  - type: checkboxes
+    id: prereqs
+    attributes:
+      label: Sanity checks
+      options:
+        - label: "`ls /dev/spidev*` shows 0.0 and 0.1"
+        - label: "`lsmod | grep -E 'kedei|ads7846|fbtft'` prints nothing"
+        - label: "`kedei_test` fills RED/BLUE/GREEN cleanly"
+  - type: markdown
+    attributes:
+      value: "If you can, attach a photo of the panel."

@@ -1,0 +1,54 @@
+name: "I can't get my panel working"
+description: You followed the README and still have a blank screen or noise.
+title: "[help] "
+labels: ["help wanted", "question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Let's get your KeDei lit up. Most failures are a `config.txt` detail or a
+        kernel driver still holding the SPI bus. Please fill this in.
+  - type: input
+    id: board
+    attributes:
+      label: Raspberry Pi model + OS / kernel
+      placeholder: "Pi 3B+, Debian 13, kernel 6.18 aarch64 (uname -a)"
+    validations:
+      required: true
+  - type: input
+    id: panel
+    attributes:
+      label: Panel marking on the PCB
+      placeholder: "3552 = KeDei 3.5\" v5.0"
+    validations:
+      required: true
+  - type: textarea
+    id: spidev
+    attributes:
+      label: Output of the two checks
+      description: "Paste `ls -l /dev/spidev*` and `lsmod | grep -E 'kedei|ads7846|fbtft|spi'`"
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: configtxt
+    attributes:
+      label: Your dtparam / dtoverlay lines from config.txt
+      render: ini
+    validations:
+      required: true
+  - type: dropdown
+    id: kedei_test
+    attributes:
+      label: What does kedei_test show?
+      options:
+        - "Solid GREEN at the end (panel works)"
+        - "Noise / garbage"
+        - "Blank / nothing"
+        - "Haven't run it yet"
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else (a photo of the panel is very helpful)

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Setup guide (README)
+    url: https://github.com/ulises2k/kedeicon#quick-start
+    about: Step-by-step spidev-clean setup, build, and troubleshooting.
+  - name: Technical deep-dive (KEDEICON.md)
+    url: https://github.com/ulises2k/kedeicon/blob/main/KEDEICON.md
+    about: The protocol, 480x320 addressing, and why the kernel-driver path fails.

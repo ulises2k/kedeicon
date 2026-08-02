@@ -1,0 +1,21 @@
+[Unit]
+Description=KeDei 3.5" console mirror (userspace spidev daemon)
+After=multi-user.target
+# Bus must be free of the kernel LCD/touch drivers (spidev only). See KEDEICON.md.
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/kedeicon
+Restart=on-failure
+RestartSec=2
+# Orientation/colors: change here and `systemctl restart kedeicon` (no rebuild).
+Environment=KEDEI_DEV=/dev/spidev0.1
+Environment=KEDEI_ROT=0
+Environment=KEDEI_INTERVAL_MS=300
+Environment=KEDEI_VCSA=/dev/vcsa1
+Environment=KEDEI_COLOR=1
+# Needs root for /dev/vcsa1 (root:tty) and /dev/spidev0.1 (root:spi).
+User=root
+
+[Install]
+WantedBy=multi-user.target
