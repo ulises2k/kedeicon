@@ -232,7 +232,7 @@ int main(void){
     const char *vcsa = getenv("KEDEI_VCSA");  if(!vcsa || !*vcsa) vcsa = "/dev/vcsa1";
     int interval  = getenv_int("KEDEI_INTERVAL_MS", 700);
     g_use_color   = getenv_int("KEDEI_COLOR", 1);
-    int full_refresh_s = getenv_int("KEDEI_FULL_REFRESH_S", 60);   // 0 = disable
+    int full_refresh_s = getenv_int("KEDEI_FULL_REFRESH_S", 0);    // 0 = off (default)
     if(interval < 16) interval = 16;   // allow fast polling for live echo (min ~60Hz)
     set_orientation(getenv_int("KEDEI_ROT", 1));
 
@@ -269,15 +269,23 @@ int main(void){
         int vrows = buf[0], vcols = buf[1];   // vcsa header: rows, cols, cx, cy
         const unsigned char *data = buf + 4;
 
-        // Self-heal: periodically (or on SIGUSR1) re-init the panel and force every
-        // cell to be redrawn, so a desynced/blank panel recovers on its own.
+        // Repaint control. Two strengths, because they look very different on screen:
+        //   HARD (SIGUSR1): lcd_init() + full-frame black clear + repaint. Recovers a
+        //     truly desynced panel, but the init and the 480x320 clear are VISIBLE as
+        //     a burst of noise for a moment - never do this on a timer.
+        //   SOFT (periodic, opt-in): just forget prev[][] so every character cell is
+        //     redrawn from the console. No init, no clear, no noise.
         refresh_accum += interval;
-        if(force_repaint || (full_refresh_s > 0 && refresh_accum >= full_refresh_s*1000)){
+        int soft = (full_refresh_s > 0 && refresh_accum >= full_refresh_s*1000);
+        if(force_repaint || soft){
+            int hard = force_repaint;
             force_repaint = 0; refresh_accum = 0;
-            lcd_init();
-            for(long i=0; i<PHYS_W*PHYS_H; i++) fb[i] = pal[0];
-            flush_rect(0, 0, PHYS_W, PHYS_H);
-            memset(prev, 0, sizeof(prev));    // every non-blank cell repaints below
+            if(hard){
+                lcd_init();
+                for(long i=0; i<PHYS_W*PHYS_H; i++) fb[i] = pal[0];
+                flush_rect(0, 0, PHYS_W, PHYS_H);
+            }
+            memset(prev, 0, sizeof(prev));    // every cell repaints in the loop below
             pcx = pcy = -1;
         }
 

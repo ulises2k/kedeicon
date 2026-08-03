@@ -55,7 +55,18 @@ is 100% userspace. **Do not revive the kernel driver.**
 | `KEDEI_INTERVAL_MS` | `40` | Console poll period (clamped to ≥16). 40 ms ≈ 25 Hz gives live-feeling echo while typing. |
 | `KEDEI_VCSA` | `/dev/vcsa1` | Console source (tty1). `vcsaN` = ttyN. |
 | `KEDEI_COLOR` | `1` | `1` = VGA attr colors, `0` = mono white-on-black. |
-| `KEDEI_FULL_REFRESH_S` | `60` | Periodic `lcd_init()` + full repaint, so a desynced panel recovers by itself (diff-only drawing would otherwise never repaint it). `0` disables. `SIGUSR1` forces one: `sudo pkill -USR1 kedeicon`. Costs ~2% CPU at 60 s. |
+| `KEDEI_FULL_REFRESH_S` | `0` (off) | Seconds between **soft** repaints: forget `prev[][]` so every cell is redrawn from the console. No `lcd_init()`, no clear, no visible artefact. Off by default. |
+
+**Repaint strengths — and why the periodic one must be soft.** Diff-only drawing means
+a desynced panel would never be repainted ("nothing changed"). The first attempt at a
+fix ran a *hard* refresh (`lcd_init()` + full-frame black clear + repaint) every 60 s.
+That works, but the init sequence and the 153,600-pixel clear are **plainly visible as
+a burst of colour noise** — a once-in-a-blue-moon glitch was traded for a guaranteed
+one every minute. So:
+
+- **Hard** (`SIGUSR1` → `sudo pkill -USR1 kedeicon`): re-init + clear + repaint. On
+  demand only, never on a timer.
+- **Soft** (`KEDEI_FULL_REFRESH_S`, opt-in): cell repaint only. Cheap and invisible.
 
 Change orientation live:
 ```bash

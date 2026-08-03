@@ -14,6 +14,9 @@ Environment=KEDEI_ROT=0
 Environment=KEDEI_INTERVAL_MS=40
 Environment=KEDEI_VCSA=/dev/vcsa1
 Environment=KEDEI_COLOR=1
+# 0 = no periodic repaint. A timed repaint is not needed in normal use; if the panel
+# ever desyncs, recover it on demand with:  sudo pkill -USR1 kedeicon
+Environment=KEDEI_FULL_REFRESH_S=0
 # Needs root for /dev/vcsa1 (root:tty) and /dev/spidev0.1 (root:spi).
 User=root
 

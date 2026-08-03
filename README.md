@@ -159,7 +159,7 @@ and `sudo systemctl restart kedeicon` (no rebuild):
 | `KEDEI_INTERVAL_MS` | `40` | Console poll / refresh period (min 16). Lower = more responsive echo, slightly more CPU. |
 | `KEDEI_VCSA` | `/dev/vcsa1` | Console source. `vcsaN` mirrors ttyN. |
 | `KEDEI_COLOR` | `1` | `1` = VGA attribute colours, `0` = mono white-on-black. |
-| `KEDEI_FULL_REFRESH_S` | `60` | Re-init the panel and repaint everything every N seconds, so a desynced/blank panel self-heals. `0` disables. You can also force one any time with `sudo pkill -USR1 kedeicon`. |
+| `KEDEI_FULL_REFRESH_S` | `0` (off) | Seconds between *soft* repaints (redraw every character cell; no panel re-init, no flicker). Off by default — you normally don't need it. **Don't** treat this as a watchdog: to recover a desynced panel use `sudo pkill -USR1 kedeicon`, which does a full re-init (briefly visible as noise, so it is never run on a timer). |
 
 **Finding the right orientation:** if the text is upside-down or mirrored, cycle
 `KEDEI_ROT` through 0→1→2→3 until it reads correctly. Landscape (`0`/`2`) gives you
@@ -204,7 +204,8 @@ Run `sh doctor.sh` first — it checks all of the below and prints a verdict per
 | Symptom | Fix |
 |---|---|
 | **Typed keys don't appear; cursor blinks but never moves — yet commands still run** | **Plymouth is still running and eating console input.** Check with `pgrep -a plymouthd`. Fix: `sudo sh setup.sh && sudo reboot`. This is *not* a display bug — verify with `sudo sh doctor.sh` (section 6 shows the real console content). |
-| Panel goes blank/white while the daemon is still running | The panel desynced (SPI glitch). It self-heals within `KEDEI_FULL_REFRESH_S` (60 s); force it now with `sudo pkill -USR1 kedeicon`, or `sudo systemctl restart kedeicon`. |
+| Panel goes blank/white while the daemon is still running | The panel desynced (SPI glitch). Recover it with `sudo pkill -USR1 kedeicon` (full re-init + repaint), or `sudo systemctl restart kedeicon`. |
+| Screen bursts into colour noise every N seconds, then redraws | A *hard* refresh is running on a timer. `lcd_init()` + full-frame clear is visibly noisy, so it must not be periodic — set `KEDEI_FULL_REFRESH_S=0` (the default). |
 | Blank panel at startup | `journalctl -u kedeicon`; confirm `/dev/spidev0.1` exists and `lsmod` shows no `kedei*`/`ads7846`/`fbtft`. |
 | Noise band / rotated text | You're addressing 320×480 somewhere — this build hardcodes 480×320; just pick a valid `KEDEI_ROT`. |
 | Text upside-down/mirrored | Cycle `KEDEI_ROT` 0→3. |
