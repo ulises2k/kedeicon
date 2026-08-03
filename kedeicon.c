@@ -226,7 +226,7 @@ int main(void){
     const char *vcsa = getenv("KEDEI_VCSA");  if(!vcsa || !*vcsa) vcsa = "/dev/vcsa1";
     int interval  = getenv_int("KEDEI_INTERVAL_MS", 700);
     g_use_color   = getenv_int("KEDEI_COLOR", 1);
-    if(interval < 100) interval = 100;
+    if(interval < 16) interval = 16;   // allow fast polling for live echo (min ~60Hz)
     set_orientation(getenv_int("KEDEI_ROT", 1));
 
     fprintf(stderr, "kedeicon: dev=%s vcsa=%s rot=%d interval=%dms color=%d grid=%dx%d\n",
@@ -245,7 +245,7 @@ int main(void){
     signal(SIGINT,  on_sig);
 
     static unsigned char buf[8 + 2*256*256];
-    int pcx = -1, pcy = -1, blink = 0;   // blinking-cursor state
+    int pcx = -1, pcy = -1, blink = 0, blink_accum = 0;   // cursor state; blink ~500ms (interval-independent)
     while(running){
         int fd = open(vcsa, O_RDONLY);
         if(fd < 0){
@@ -287,7 +287,8 @@ int main(void){
         // --- blinking cursor overlay (vcsa header: cx=buf[2], cy=buf[3]) ---
         int cx = buf[2], cy = buf[3];
         if(cx >= GCOLS || cy >= GROWS){ cx = -1; cy = -1; }   // off-grid: hide
-        blink ^= 1;
+        blink_accum += interval;                              // ~500ms blink, independent of poll rate
+        if(blink_accum >= 500){ blink ^= 1; blink_accum = 0; }
         if(pcx != cx || pcy != cy){
             if(pcx >= 0) paint_cell(pcy, pcx, 0);             // restore old cursor cell
             pcx = cx; pcy = cy;

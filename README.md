@@ -61,7 +61,20 @@ So `kedeicon` stays 100% userspace. It:
 
 ## Quick start
 
-### 1. Put the SPI bus in "spidev-clean" mode
+### 1. Prepare the system
+
+```bash
+sudo sh setup.sh     # backs up and diffs everything it changes
+sudo reboot
+sh doctor.sh         # verifies the result; paste this into issues when asking for help
+```
+
+`setup.sh` does two things: it puts the SPI bus in **spidev-clean** mode, and it
+**disables Plymouth** — the boot splash can stay attached to the console and swallow
+your keystrokes (see [Troubleshooting](#troubleshooting)). HDMI is left untouched.
+
+<details>
+<summary><b>Prefer to do it by hand?</b> — what setup.sh changes</summary>
 
 The LCD needs an SPI bus with **no kernel LCD/touch driver** on it. Edit
 `/boot/firmware/config.txt` (older images: `/boot/config.txt`) so that:
@@ -81,6 +94,15 @@ parallel it corrupts the LCD stream. Reboot, then verify:
 ls /dev/spidev*                         # expect 0.0 and 0.1
 lsmod | grep -E 'kedei|ads7846|fbtft'   # expect no output
 ```
+
+And disable Plymouth, or the console will not echo what you type:
+
+```bash
+sudo systemctl mask plymouth-start.service plymouth-quit.service plymouth-quit-wait.service
+# also remove `quiet`/`splash` and add `plymouth.enable=0` in cmdline.txt (single line!)
+```
+
+</details>
 
 ### 2. Proof of life
 
@@ -133,7 +155,7 @@ and `sudo systemctl restart kedeicon` (no rebuild):
 |---|---|---|
 | `KEDEI_DEV` | `/dev/spidev0.1` | SPI node for the LCD (CE1). |
 | `KEDEI_ROT` | `0` | Orientation: `0`/`2` = landscape (80×26), `1`/`3` = portrait (53×40). The pairs are 180° flips. |
-| `KEDEI_INTERVAL_MS` | `300` | Console poll / refresh period. |
+| `KEDEI_INTERVAL_MS` | `40` | Console poll / refresh period (min 16). Lower = more responsive echo, slightly more CPU. |
 | `KEDEI_VCSA` | `/dev/vcsa1` | Console source. `vcsaN` mirrors ttyN. |
 | `KEDEI_COLOR` | `1` | `1` = VGA attribute colours, `0` = mono white-on-black. |
 
@@ -175,8 +197,11 @@ in **[KEDEICON.md](KEDEICON.md)**.
 
 ## Troubleshooting
 
+Run `sh doctor.sh` first — it checks all of the below and prints a verdict per item.
+
 | Symptom | Fix |
 |---|---|
+| **Typed keys don't appear; cursor blinks but never moves — yet commands still run** | **Plymouth is still running and eating console input.** Check with `pgrep -a plymouthd`. Fix: `sudo sh setup.sh && sudo reboot`. This is *not* a display bug — verify with `sudo sh doctor.sh` (section 6 shows the real console content). |
 | Blank panel | `journalctl -u kedeicon`; confirm `/dev/spidev0.1` exists and `lsmod` shows no `kedei*`/`ads7846`/`fbtft`. |
 | Noise band / rotated text | You're addressing 320×480 somewhere — this build hardcodes 480×320; just pick a valid `KEDEI_ROT`. |
 | Text upside-down/mirrored | Cycle `KEDEI_ROT` 0→3. |

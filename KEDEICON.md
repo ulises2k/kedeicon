@@ -37,6 +37,8 @@ is 100% userspace. **Do not revive the kernel driver.**
 
 | File | Purpose |
 |------|---------|
+| `setup.sh` | One-shot system prep: spidev-clean SPI bus + disables Plymouth. Idempotent, backups + diffs. |
+| `doctor.sh` | Read-only diagnostics (7 checks, verdict per item). Paste its output into issues. |
 | `kedeicon.c` | The daemon. SPI framing copied verbatim from `kedei_test.c`. |
 | `genfont.py` | Extracts a console PSF font (width ≤ 8) into `font.h`. No hand-authored glyphs. Defaults to `Lat15-Terminus12x6` (6×12 → 80 cols); pass a font name to override. |
 | `font.h` | **Generated** on the Pi by `genfont.py` (`#define FONT_W/FONT_H` + `fontdata[256][H]`). Not committed; regenerated at build. |
@@ -50,7 +52,7 @@ is 100% userspace. **Do not revive the kernel driver.**
 |-----|---------|---------|
 | `KEDEI_DEV` | `/dev/spidev0.1` | SPI node (LCD is CE1). |
 | `KEDEI_ROT` | `0` | Orientation. `0`/`2` = landscape (80×26); `1`/`3` = portrait (53×40). Odd/even pairs are 180° flips of each other. |
-| `KEDEI_INTERVAL_MS` | `700` | Console poll period. |
+| `KEDEI_INTERVAL_MS` | `40` | Console poll period (clamped to ≥16). 40 ms ≈ 25 Hz gives live-feeling echo while typing. |
 | `KEDEI_VCSA` | `/dev/vcsa1` | Console source (tty1). `vcsaN` = ttyN. |
 | `KEDEI_COLOR` | `1` | `1` = VGA attr colors, `0` = mono white-on-black. |
 
@@ -71,6 +73,26 @@ sudo systemctl daemon-reload && sudo systemctl restart kedeicon
 - `dtoverlay=vc4-kms-v3d` left intact (HDMI unaffected).
 
 Verify: `ls /dev/spidev*` → `0.0` and `0.1`; `lsmod | grep -E 'kedei35fb|ads7846'` → empty.
+
+## Prerequisite #2: Plymouth must be dead
+
+On a Raspberry Pi OS image, `plymouthd` (the boot splash) can survive boot as
+`plymouthd --mode=boot --attach-to-session` and **keep consuming console keyboard
+input**. The failure looks exactly like a display bug and wastes hours:
+
+- typed characters never echo next to the prompt,
+- the cursor blinks but never advances,
+- **yet commands still execute** (bash receives some of the input),
+- writes *to* the console (command output, `printf > /dev/tty1`) display fine.
+
+How we proved it was not the daemon: sampling `/dev/vcsa1` (the console's own text
+buffer) every 80 ms for two minutes while typing showed **zero changes** — the
+cursor never moved in the console itself. The panel was faithfully mirroring a
+console that genuinely had nothing new to show. Killing `plymouthd` fixed it.
+
+`setup.sh` masks every `plymouth-*.service`, strips `quiet`/`splash` from
+`cmdline.txt`, and appends `plymouth.enable=0` (kernel-level kill switch).
+`doctor.sh` section 3 checks all three.
 
 ## Build & deploy
 
