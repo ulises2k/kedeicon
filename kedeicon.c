@@ -214,6 +214,12 @@ static void paint_cell(int r, int c, int as_cursor){
 static volatile sig_atomic_t running = 1;
 static void on_sig(int s){ (void)s; running = 0; }
 
+// Diff-only drawing means a desynced panel (SPI glitch, power blip) would never be
+// repainted, since "nothing changed". A periodic full repaint self-heals that;
+// SIGUSR1 forces one on demand:  sudo pkill -USR1 kedeicon
+static volatile sig_atomic_t force_repaint = 0;
+static void on_usr1(int s){ (void)s; force_repaint = 1; }
+
 static int getenv_int(const char *name, int def){
     const char *s = getenv(name);
     if(!s || !*s) return def;
@@ -226,11 +232,12 @@ int main(void){
     const char *vcsa = getenv("KEDEI_VCSA");  if(!vcsa || !*vcsa) vcsa = "/dev/vcsa1";
     int interval  = getenv_int("KEDEI_INTERVAL_MS", 700);
     g_use_color   = getenv_int("KEDEI_COLOR", 1);
+    int full_refresh_s = getenv_int("KEDEI_FULL_REFRESH_S", 60);   // 0 = disable
     if(interval < 16) interval = 16;   // allow fast polling for live echo (min ~60Hz)
     set_orientation(getenv_int("KEDEI_ROT", 1));
 
-    fprintf(stderr, "kedeicon: dev=%s vcsa=%s rot=%d interval=%dms color=%d grid=%dx%d\n",
-            dev, vcsa, g_rot, interval, g_use_color, GCOLS, GROWS);
+    fprintf(stderr, "kedeicon: dev=%s vcsa=%s rot=%d interval=%dms color=%d grid=%dx%d refresh=%ds\n",
+            dev, vcsa, g_rot, interval, g_use_color, GCOLS, GROWS, full_refresh_s);
 
     init_palette();
     if(lcd_open(dev) < 0) return 1;
@@ -243,9 +250,11 @@ int main(void){
 
     signal(SIGTERM, on_sig);
     signal(SIGINT,  on_sig);
+    signal(SIGUSR1, on_usr1);
 
     static unsigned char buf[8 + 2*256*256];
     int pcx = -1, pcy = -1, blink = 0, blink_accum = 0;   // cursor state; blink ~500ms (interval-independent)
+    int refresh_accum = 0;                                 // ms since last full repaint
     while(running){
         int fd = open(vcsa, O_RDONLY);
         if(fd < 0){
@@ -259,6 +268,18 @@ int main(void){
 
         int vrows = buf[0], vcols = buf[1];   // vcsa header: rows, cols, cx, cy
         const unsigned char *data = buf + 4;
+
+        // Self-heal: periodically (or on SIGUSR1) re-init the panel and force every
+        // cell to be redrawn, so a desynced/blank panel recovers on its own.
+        refresh_accum += interval;
+        if(force_repaint || (full_refresh_s > 0 && refresh_accum >= full_refresh_s*1000)){
+            force_repaint = 0; refresh_accum = 0;
+            lcd_init();
+            for(long i=0; i<PHYS_W*PHYS_H; i++) fb[i] = pal[0];
+            flush_rect(0, 0, PHYS_W, PHYS_H);
+            memset(prev, 0, sizeof(prev));    // every non-blank cell repaints below
+            pcx = pcy = -1;
+        }
 
         for(int r=0; r<GROWS; r++){
             int run_start = -1;

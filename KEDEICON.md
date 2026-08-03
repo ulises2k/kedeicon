@@ -55,6 +55,7 @@ is 100% userspace. **Do not revive the kernel driver.**
 | `KEDEI_INTERVAL_MS` | `40` | Console poll period (clamped to ≥16). 40 ms ≈ 25 Hz gives live-feeling echo while typing. |
 | `KEDEI_VCSA` | `/dev/vcsa1` | Console source (tty1). `vcsaN` = ttyN. |
 | `KEDEI_COLOR` | `1` | `1` = VGA attr colors, `0` = mono white-on-black. |
+| `KEDEI_FULL_REFRESH_S` | `60` | Periodic `lcd_init()` + full repaint, so a desynced panel recovers by itself (diff-only drawing would otherwise never repaint it). `0` disables. `SIGUSR1` forces one: `sudo pkill -USR1 kedeicon`. Costs ~2% CPU at 60 s. |
 
 Change orientation live:
 ```bash
