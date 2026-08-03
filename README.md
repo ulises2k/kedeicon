@@ -8,7 +8,8 @@ If you bought one of these panels, fought with `fbtft`/`fb_ili9486`/vendor DKMS
 blobs, and ended up with a **blank screen or full-screen noise**, this repo is for
 you. It paints cleanly.
 
-![KeDei 3.5 v5.0 mirroring the console](docs/kedeicon.jpg)
+Verified on a Raspberry Pi 3B+ with Debian 13 (trixie), kernel 6.18, driving the
+console at 80×26 characters in landscape.
 
 ---
 
